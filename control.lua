@@ -142,6 +142,7 @@ local function update_burn_rate()
         scram_bounds.reactor_max_burn_rate.max,
         scram_bounds.reactor_max_burn_rate.min
     )
+    monitor_print("Burn Rate: " .. new_burn_rate)
     reactor.setBurnRate(new_burn_rate)
 end
 
@@ -168,6 +169,7 @@ local commands = {
         if reactor.getStatus() == false then
             reactor.activate()
             print("Reactor started.")
+            monitor_print("Reactor started.")
         else
             print("Reactor already running.")
         end
@@ -177,6 +179,7 @@ local commands = {
             reactor.scram()
             reactor.setBurnRate(0)
             print("Reactor stopped.")
+            monitor_print("Reactor stopped.")
         else
             print("Reactor already stopped.")
         end
@@ -190,7 +193,8 @@ local commands = {
 
 local function command_handler()
     while true do
-        local input = read("Enter Command: ")
+        write("Enter Command: ")
+        local input = read()
         if commands[input] == nil then
             print("Unknown command. Enter 'help' command to get list of valid commands.")
         else
