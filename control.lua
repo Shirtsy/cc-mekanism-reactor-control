@@ -4,7 +4,7 @@ local turbine = peripheral.find("turbineValve")
 local matrix = peripheral.find("inductionPort")
 local monitor = peripheral.find("monitor")
 
-monitor.setTextScale(2)
+monitor.setTextScale(0.5)
 
 local function monitor_print(text)
     local x, y = monitor.getSize()
@@ -206,6 +206,7 @@ end
 local success, error_msg = pcall(parallel.waitForAny, main_reactor_loop, command_handler)
 if not success then
     monitor_print("UNRECOVERABLE PROGRAM ERROR: " .. error_msg)
+    print("PROGRAM ERROR: " .. error_msg)
     while reactor.getStatus() == true do
         monitor_print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
         reactor.scram()
