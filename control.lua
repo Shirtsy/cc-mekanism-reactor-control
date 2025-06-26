@@ -97,12 +97,96 @@ local scram_bounds = {
     },
 }
 
-local function in_scram_bounds()
-    for key in scram_bounds do
-        local value = key.get()
-        if not (key.min >= value and value <= key.max) then
-            return false
+local function scram_if_out_of_bounds()
+    for key, bounds in pairs(scram_bounds) do
+        local value = bounds.get()
+        if not (bounds.min <= value and value <= bounds.max) then
+            print("REACTOR ERROR: " .. key .. "out of safe range.")
+            print("Min: " .. bounds.min)
+            print("Max: " .. bounds.max)
+            print("Actual Value: " .. value)
+            print("!!! INITIATING REACTOR SCRAM !!!")
+            reactor.scram()
+            if reactor.getStatus() == false then
+                print("REACTOR SHUTDOWN SUCCESSFUL.")
+            else
+                print("!!! REACTOR SHUTDOWN NOT SUCCESSFUL !!! ")
+            end
+            return true
         end
     end
-    return true
+    return false
 end
+
+local function map_range(input, input_min, input_max, output_min, output_max)
+    local normalized = (input - input_min) / (input_max - input_min)
+    return output_min + normalized * (output_max - output_min)
+end
+
+local function update_burn_rate()
+    local new_burn_rate = map_range(
+        scram_bounds.matrix_power_percent.get(),
+        scram_bounds.matrix_power_percent.min,
+        scram_bounds.matrix_power_percent.max,
+        scram_bounds.reactor_max_burn_rate.max,
+        scram_bounds.reactor_max_burn_rate.min
+    )
+    reactor.setBurnRate(new_burn_rate)
+end
+
+local function main_reactor_loop()
+    while true do
+        if reactor.getStatus() == true then
+            scram_if_out_of_bounds()
+            update_burn_rate()
+        else
+            reactor.setBurnRate(0)
+        end
+        sleep(0.05)
+    end
+end
+
+local commands = {
+    help = function()
+        print("help  - Displays this message.")
+        print("start - Boots up reactor.")
+        print("stop  - Stops reactor.")
+        print("exit  - Stops reactor and shuts down program.")
+    end,
+    start = function()
+        if reactor.getStatus() == false then
+            reactor.activate()
+            print("Reactor started.")
+        else
+            print("Reactor already running.")
+        end
+    end,
+    stop = function()
+        if reactor.getStatus() == true then
+            reactor.scram()
+            print("Reactor stopped.")
+        else
+            print("Reactor already stopped.")
+        end
+    end,
+    exit = function()
+        if reactor.getStatus() == true then
+            reactor.scram()
+            print("Reactor stopped.")
+        end
+        shell.exit()
+    end,
+}
+
+local function command_handler()
+    while true do
+        local input = read("Enter Command: ")
+        if commands[input] == nil then
+            print("Unknown command. Enter 'help' command to get list of valid commands.")
+        else
+            commands[input]()
+        end
+    end
+end
+
+parallel.waitForAny(main_reactor_loop, command_handler)
