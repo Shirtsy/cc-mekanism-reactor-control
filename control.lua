@@ -1,7 +1,7 @@
-local reactor = peripheral.find("fission_reactor")
-local boiler = peripheral.find("thermoelectric_boiler")
-local turbine = peripheral.find("industrial_turbine")
-local matrix = peripheral.find("induction_matrix")
+local reactor = peripheral.find("fissionReactorLogicAdapter")
+local boiler = peripheral.find("boilerValve")
+local turbine = peripheral.find("turbineValve")
+local matrix = peripheral.find("inductionPort")
 local monitor = peripheral.find("monitor")
 
 monitor.setTextScale(2)
