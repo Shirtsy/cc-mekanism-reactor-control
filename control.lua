@@ -105,7 +105,7 @@ local function scram_if_out_of_bounds()
             print("Min: " .. bounds.min)
             print("Max: " .. bounds.max)
             print("Actual Value: " .. value)
-            print("!!! INITIATING REACTOR SCRAM !!!")
+            print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
             reactor.scram()
             if reactor.getStatus() == false then
                 print("REACTOR SHUTDOWN SUCCESSFUL.")
@@ -164,16 +164,15 @@ local commands = {
     stop = function()
         if reactor.getStatus() == true then
             reactor.scram()
+            reactor.setBurnRate(0)
             print("Reactor stopped.")
         else
             print("Reactor already stopped.")
         end
     end,
     exit = function()
-        if reactor.getStatus() == true then
-            reactor.scram()
-            print("Reactor stopped.")
-        end
+        commands.stop()
+        print("Exiting program.")
         shell.exit()
     end,
 }
@@ -189,4 +188,20 @@ local function command_handler()
     end
 end
 
-parallel.waitForAny(main_reactor_loop, command_handler)
+local success, error_msg = pcall(parallel.waitForAny, main_reactor_loop, command_handler)
+if not success then
+    print("UNRECOVERABLE PROGRAM ERROR: " .. error_msg)
+    while reactor.getStatus() == true do
+        print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
+        reactor.scram()
+        reactor.setBurnRate(0)
+        if reactor.getStatus() == false then
+            print("REACTOR SHUTDOWN SUCCESSFUL.")
+            print("Exiting program.")
+            shell.exit()
+        else
+            print("!!! REACTOR SHUTDOWN FAILED !!!")
+            sleep(0.05)
+        end
+    end
+end
