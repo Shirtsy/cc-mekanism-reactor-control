@@ -10,7 +10,7 @@ local function monitor_print(text)
     local x, y = monitor.getSize() 
     monitor.scroll(1)
     monitor.setCursorPos(1, y)
-    monitor.write(text)
+    monitor.write(textutils.formatTime(os.time()) .. text)
 end
 
 local scram_bounds = {
