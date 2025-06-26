@@ -4,6 +4,8 @@ local turbine = peripheral.find("industrial_turbine")
 local matrix = peripheral.find("induction_matrix")
 local monitor = peripheral.find("monitor")
 
+monitor.setTextScale(2)
+
 local function monitor_print(text)
     local x, y = monitor.getSize() 
     monitor.scroll(1)
@@ -13,7 +15,7 @@ end
 
 local scram_bounds = {
     reactor_max_burn_rate = {
-        min = 10,
+        min = 0,
         max = 100,
         get = function()
             return reactor.getMaxBurnRate()
