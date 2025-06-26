@@ -112,7 +112,7 @@ local function scram_if_out_of_bounds()
     for key, bounds in pairs(scram_bounds) do
         local value = bounds.get()
         if not (bounds.min <= value and value <= bounds.max) then
-            monitor_print("REACTOR ERROR: " .. key .. "out of safe range.")
+            monitor_print("REACTOR ERROR: " .. key .. " out of safe range.")
             monitor_print("Min: " .. bounds.min)
             monitor_print("Max: " .. bounds.max)
             monitor_print("Actual Value: " .. value)
