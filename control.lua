@@ -7,10 +7,11 @@ local monitor = peripheral.find("monitor")
 monitor.setTextScale(2)
 
 local function monitor_print(text)
-    local x, y = monitor.getSize() 
+    local x, y = monitor.getSize()
     monitor.scroll(1)
     monitor.setCursorPos(1, y)
-    monitor.write(textutils.formatTime(os.time()) .. text)
+    local time_string = textutils.formatTime(os.time())
+    monitor.write(time_string .. " " .. text)
 end
 
 local scram_bounds = {
