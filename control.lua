@@ -2,6 +2,14 @@ local reactor = peripheral.find("fission_reactor")
 local boiler = peripheral.find("thermoelectric_boiler")
 local turbine = peripheral.find("industrial_turbine")
 local matrix = peripheral.find("induction_matrix")
+local monitor = peripheral.find("monitor")
+
+local function monitor_print(text)
+    local x, y = monitor.getSize() 
+    monitor.scroll(1)
+    monitor.setCursorPos(1, y)
+    monitor.write(text)
+end
 
 local scram_bounds = {
     reactor_max_burn_rate = {
@@ -55,7 +63,7 @@ local scram_bounds = {
     },
     boiler_hot_coolant_percent = {
         min = 0,
-        max = 10,
+        max = 90,
         get = function()
             return boiler.getHeatedCoolantFilledPercentage()
         end
@@ -101,16 +109,16 @@ local function scram_if_out_of_bounds()
     for key, bounds in pairs(scram_bounds) do
         local value = bounds.get()
         if not (bounds.min <= value and value <= bounds.max) then
-            print("REACTOR ERROR: " .. key .. "out of safe range.")
-            print("Min: " .. bounds.min)
-            print("Max: " .. bounds.max)
-            print("Actual Value: " .. value)
-            print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
+            monitor_print("REACTOR ERROR: " .. key .. "out of safe range.")
+            monitor_print("Min: " .. bounds.min)
+            monitor_print("Max: " .. bounds.max)
+            monitor_print("Actual Value: " .. value)
+            monitor_print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
             reactor.scram()
             if reactor.getStatus() == false then
-                print("REACTOR SHUTDOWN SUCCESSFUL.")
+                monitor_print("REACTOR SHUTDOWN SUCCESSFUL.")
             else
-                print("!!! REACTOR SHUTDOWN NOT SUCCESSFUL !!! ")
+                monitor_print("!!! REACTOR SHUTDOWN NOT SUCCESSFUL !!! ")
             end
             return true
         end
@@ -190,17 +198,17 @@ end
 
 local success, error_msg = pcall(parallel.waitForAny, main_reactor_loop, command_handler)
 if not success then
-    print("UNRECOVERABLE PROGRAM ERROR: " .. error_msg)
+    monitor_print("UNRECOVERABLE PROGRAM ERROR: " .. error_msg)
     while reactor.getStatus() == true do
-        print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
+        monitor_print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
         reactor.scram()
         reactor.setBurnRate(0)
         if reactor.getStatus() == false then
-            print("REACTOR SHUTDOWN SUCCESSFUL.")
+            monitor_print("REACTOR SHUTDOWN SUCCESSFUL.")
             print("Exiting program.")
             shell.exit()
         else
-            print("!!! REACTOR SHUTDOWN FAILED !!!")
+            monitor_print("!!! REACTOR SHUTDOWN FAILED !!!")
             sleep(0.05)
         end
     end
