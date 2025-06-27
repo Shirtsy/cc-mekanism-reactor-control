@@ -15,11 +15,11 @@ local function monitor_print(text)
 end
 
 local scram_bounds = {
-    reactor_max_burn_rate = {
+    reactor_burn_rate = {
         min = 0,
-        max = 100,
+        max = 30,
         get = function()
-            return reactor.getMaxBurnRate()
+            return reactor.getBurnRate()
         end
     },
     reactor_temperature = {
@@ -31,77 +31,70 @@ local scram_bounds = {
     },
     reactor_heating_rate = {
         min = 0,
-        max = 100,
+        max = 100000000,
         get = function()
             return reactor.getHeatingRate()
         end
     },
     reactor_waste_percent = {
         min = 0,
-        max = 90,
+        max = 0.90,
         get = function()
             return reactor.getWasteFilledPercentage()
         end
     },
     reactor_cold_coolant_percent = {
-        min = 10,
-        max = 100,
+        min = 0.10,
+        max = 1.00,
         get = function()
             return reactor.getCoolantFilledPercentage()
         end
     },
     reactor_hot_coolant_percent = {
         min = 0,
-        max = 10,
+        max = 0.10,
         get = function()
             return reactor.getHeatedCoolantFilledPercentage()
         end
     },
     boiler_cold_coolant_percent = {
         min = 0,
-        max = 10,
+        max = 0.10,
         get = function()
-            return boiler.getCoolantFilledPercentage()
+            return boiler.getCooledCoolantFilledPercentage()
         end
     },
     boiler_hot_coolant_percent = {
         min = 0,
-        max = 90,
+        max = 0.90,
         get = function()
             return boiler.getHeatedCoolantFilledPercentage()
         end
     },
     boiler_water_percent = {
-        min = 50,
-        max = 100,
+        min = 0.50,
+        max = 1.00,
         get = function()
             return boiler.getWaterFilledPercentage()
         end
     },
     boiler_steam_percent = {
         min = 0,
-        max = 10,
+        max = 0.10,
         get = function()
             return boiler.getSteamFilledPercentage()
         end
     },
-    turbine_water_percent = {
-        min = 0,
-        max = 100,
-        get = function()
-            return turbine.getWaterFilledPercentage()
-        end
-    },
     turbine_steam_percent = {
         min = 0,
-        max = 10,
+        max = 0.60,
         get = function()
             return turbine.getSteamFilledPercentage()
         end
     },
     matrix_power_percent = {
         min = 0,
-        max = 90,
+        max = 0.90,
         get = function()
             return matrix.getEnergyFilledPercentage()
         end
@@ -113,9 +106,13 @@ local function scram_if_out_of_bounds()
         local value = bounds.get()
         if not (bounds.min <= value and value <= bounds.max) then
             monitor_print("REACTOR ERROR: " .. key .. " out of safe range.")
-            monitor_print("Min: " .. bounds.min)
-            monitor_print("Max: " .. bounds.max)
-            monitor_print("Actual Value: " .. value)
+            monitor_print(
+                "Min: " .. bounds.min
+                .. " | " ..
+                "Max: " .. bounds.max
+                .. " | " ..
+                "Actual Value: " .. value
+            )
             monitor_print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
             reactor.scram()
             if reactor.getStatus() == false then
@@ -123,6 +120,8 @@ local function scram_if_out_of_bounds()
             else
                 monitor_print("!!! REACTOR SHUTDOWN NOT SUCCESSFUL !!! ")
             end
+            reactor.setBurnRate(0)
+            monitor_print("Burn Rate: " .. scram_bounds.reactor_burn_rate.get())
             return true
         end
     end
@@ -139,10 +138,9 @@ local function update_burn_rate()
         scram_bounds.matrix_power_percent.get(),
         scram_bounds.matrix_power_percent.min,
         scram_bounds.matrix_power_percent.max,
-        scram_bounds.reactor_max_burn_rate.max,
-        scram_bounds.reactor_max_burn_rate.min
+        scram_bounds.reactor_burn_rate.max,
+        scram_bounds.reactor_burn_rate.min
     )
-    monitor_print("Burn Rate: " .. new_burn_rate)
     reactor.setBurnRate(new_burn_rate)
 end
 
@@ -164,6 +162,7 @@ local commands = {
         print("start - Boots up reactor.")
         print("stop  - Stops reactor.")
         print("exit  - Stops reactor and shuts down program.")
+        return true
     end,
     start = function()
         if reactor.getStatus() == false then
@@ -173,6 +172,7 @@ local commands = {
         else
             print("Reactor already running.")
         end
+        return true
     end,
     stop = function()
         if reactor.getStatus() == true then
@@ -183,11 +183,17 @@ local commands = {
         else
             print("Reactor already stopped.")
         end
+        return true
     end,
     exit = function()
-        commands.stop()
+        if reactor.getStatus() == true then
+            reactor.scram()
+            reactor.setBurnRate(0)
+            print("Reactor stopped.")
+            monitor_print("Reactor stopped.")
+        end
         print("Exiting program.")
-        shell.exit()
+        return false
     end,
 }
 
@@ -198,7 +204,9 @@ local function command_handler()
         if commands[input] == nil then
             print("Unknown command. Enter 'help' command to get list of valid commands.")
         else
-            commands[input]()
+            if not commands[input]() then
+                return
+            end
         end
     end
 end
@@ -214,7 +222,7 @@ if not success then
         if reactor.getStatus() == false then
             monitor_print("REACTOR SHUTDOWN SUCCESSFUL.")
             print("Exiting program.")
-            shell.exit()
+            return
         else
             monitor_print("!!! REACTOR SHUTDOWN FAILED !!!")
             sleep(0.05)
