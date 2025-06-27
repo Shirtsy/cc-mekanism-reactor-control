@@ -10,11 +10,14 @@ monitor.setTextScale(0.5)
 
 local function monitor_print(text)
     local x, y = monitor.getSize()
-    monitor.scroll(1)
-    monitor.setCursorPos(1, y)
     local time_string = textutils.formatTime(os.time())
-    local total_string = time_string .. " " .. text
-    monitor.write(cc_strings.wrap(total_string, x))
+    local lines = cc_strings.wrap(time_string .. " " .. text, x)
+    for _, line in ipairs(lines) do
+        monitor.scroll(1)
+        monitor.setCursorPos(1, y)
+        monitor.write(line)
+    end
+    
 end
 
 local scram_bounds = {
