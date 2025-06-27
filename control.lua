@@ -1,3 +1,5 @@
+local cc_strings = require("cc.strings")
+
 local reactor = peripheral.find("fissionReactorLogicAdapter")
 local boiler = peripheral.find("boilerValve")
 local turbine = peripheral.find("turbineValve")
@@ -11,7 +13,8 @@ local function monitor_print(text)
     monitor.scroll(1)
     monitor.setCursorPos(1, y)
     local time_string = textutils.formatTime(os.time())
-    monitor.write(time_string .. " " .. text)
+    local total_string = time_string .. " " .. text
+    monitor.write(cc_strings.wrap(total_string, x))
 end
 
 local scram_bounds = {
