@@ -1,4 +1,5 @@
 local cc_strings = require("cc.strings")
+local dfpwm = require("cc.audio.dfpwm")
 
 local reactor = peripheral.find("fissionReactorLogicAdapter")
 local boiler = peripheral.find("boilerValve")
@@ -10,14 +11,41 @@ monitor.setTextScale(0.5)
 
 local function monitor_print(text)
     local x, y = monitor.getSize()
-    local time_string = textutils.formatTime(os.time())
-    local lines = cc_strings.wrap(time_string .. " " .. text, x)
-    for _, line in ipairs(lines) do
-        monitor.scroll(1)
-        monitor.setCursorPos(1, y)
+    local time_string = os.day() .. " " .. textutils.formatTime(os.time())
+    local lines = cc_strings.wrap("\n" .. time_string .. "\n" .. text, x)
+    monitor.scroll(#lines)
+    for i, line in ipairs(lines) do
+        monitor.setCursorPos(1, y - (#lines - (i - 1)))
         monitor.write(line)
     end
-    
+end
+
+local vox_queue = {}
+
+local function vox_announce(text)
+    for word in text:gmatch("%S+") do
+        table.insert(vox_queue, word)
+    end
+end
+
+local function vox_loop()
+    while true do
+        local speakers = {peripheral.find("speaker")}
+        if #speakers > 0 and #vox_queue > 0 then
+            local decoder = dfpwm.make_decoder()
+
+            local word = table.remove(vox_queue, 1)
+            for chunk in io.lines("vox/" .. word .. ".dfpwm", 16 * 1024) do
+                local buffer = decoder(chunk)
+                for _, speaker in pairs (speakers) do
+                    speaker.playAudio(buffer)
+                end
+            end
+            os.pullEvent("speaker_audio_empty")
+        else
+            sleep(0.1)
+        end
+    end
 end
 
 local scram_bounds = {
@@ -121,6 +149,7 @@ local function scram_if_out_of_bounds()
             )
             monitor_print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
             reactor.scram()
+            vox_announce("reactor emergency shut down")
             if reactor.getStatus() == false then
                 monitor_print("REACTOR SHUTDOWN SUCCESSFUL.")
             else
@@ -150,13 +179,27 @@ local function update_burn_rate()
     reactor.setBurnRate(new_burn_rate)
 end
 
+local function get_status_string()
+    local status = ""
+    for k, v in pairs(scram_bounds) do
+        status = status .. k .. ": " .. v.get() .. "\n"
+    end
+    return status
+end
+
 local function main_reactor_loop()
+    local last_status_time = 0
     while true do
         if reactor.getStatus() == true then
             scram_if_out_of_bounds()
             update_burn_rate()
         else
             reactor.setBurnRate(0)
+        end
+        local current_time = os.clock()
+        if current_time - last_status_time >= 10 then
+            monitor_print(get_status_string())
+            last_status_time = current_time
         end
         sleep(0.05)
     end
@@ -175,6 +218,7 @@ local commands = {
             reactor.activate()
             print("Reactor started.")
             monitor_print("Reactor started.")
+            vox_announce("reactor activated")
         else
             print("Reactor already running.")
         end
@@ -186,6 +230,7 @@ local commands = {
             reactor.setBurnRate(0)
             print("Reactor stopped.")
             monitor_print("Reactor stopped.")
+            vox_announce("reactor shut down")
         else
             print("Reactor already stopped.")
         end
@@ -197,6 +242,7 @@ local commands = {
             reactor.setBurnRate(0)
             print("Reactor stopped.")
             monitor_print("Reactor stopped.")
+            vox_announce("reactor shut down")
         end
         print("Exiting program.")
         return false
@@ -217,7 +263,9 @@ local function command_handler()
     end
 end
 
-local success, error_msg = pcall(parallel.waitForAny, main_reactor_loop, command_handler)
+
+
+local success, error_msg = pcall(parallel.waitForAny, main_reactor_loop, command_handler, vox_loop)
 if not success then
     monitor_print("UNRECOVERABLE PROGRAM ERROR: " .. error_msg)
     print("PROGRAM ERROR: " .. error_msg)
@@ -225,6 +273,7 @@ if not success then
         monitor_print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
         reactor.scram()
         reactor.setBurnRate(0)
+        vox_announce("reactor emergency shut down")
         if reactor.getStatus() == false then
             monitor_print("REACTOR SHUTDOWN SUCCESSFUL.")
             print("Exiting program.")
