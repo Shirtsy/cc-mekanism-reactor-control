@@ -33,15 +33,21 @@ local function vox_loop()
         local speakers = {peripheral.find("speaker")}
         if #speakers > 0 and #vox_queue > 0 then
             local decoder = dfpwm.make_decoder()
-
             local word = table.remove(vox_queue, 1)
             for chunk in io.lines("vox/" .. word .. ".dfpwm", 16 * 1024) do
                 local buffer = decoder(chunk)
-                for _, speaker in pairs (speakers) do
-                    speaker.playAudio(buffer)
-                end
+
+                local funcs = {}
+                table.insert(funcs, function()
+                    for _, speaker in pairs (speakers) do
+                        while not speaker.playAudio(buffer) do
+                            os.pullEvent("speaker_audio_empty")
+                        end
+                    end
+                end)
+
+                parallel.waitForAll(unpack(funcs))
             end
-            os.pullEvent("speaker_audio_empty")
         else
             sleep(0.1)
         end
@@ -249,20 +255,23 @@ local commands = {
     end,
 }
 
+local function try_command(command)
+    if commands[command] == nil then
+            print("Unknown command. Enter 'help' command to get list of valid commands.")
+        else
+            if not commands[command]() then
+                return
+            end
+        end
+end
+
 local function command_handler()
     while true do
         write("Enter Command: ")
         local input = read()
-        if commands[input] == nil then
-            print("Unknown command. Enter 'help' command to get list of valid commands.")
-        else
-            if not commands[input]() then
-                return
-            end
-        end
+        try_command(input)
     end
 end
-
 
 
 local success, error_msg = pcall(parallel.waitForAny, main_reactor_loop, command_handler, vox_loop)
