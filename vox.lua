@@ -1,5 +1,6 @@
-local vox_queue = {}
 local dfpwm = require("cc.audio.dfpwm")
+
+local vox_queue = {}
 
 local function vox_announce(text)
     for word in text:gmatch("%S+") do
