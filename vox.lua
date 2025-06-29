@@ -13,7 +13,6 @@ local function vox_loop()
         local speakers = {peripheral.find("speaker")}
         if #speakers > 0 and #vox_queue > 0 then
             local decoder = dfpwm.make_decoder()
-
             local word = table.remove(vox_queue, 1)
             if word == "." then
                 sleep(0.1)
@@ -23,11 +22,17 @@ local function vox_loop()
                     for _, speaker in pairs (speakers) do
                         speaker.playAudio(buffer)
                     end
+                    os.pullEvent("speaker_audio_empty")
+                    sleep(0.05)
                 end
-                os.pullEvent("speaker_audio_empty")
             end
         else
             sleep(0.1)
         end
     end
 end
+
+return {
+    announce = announce,
+    vox_loop = vox_loop
+}
