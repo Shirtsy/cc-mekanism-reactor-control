@@ -51,7 +51,7 @@ end
 local scram_bounds = {
     reactor_burn_rate = {
         min = 0,
-        max = 30,
+        max = 60,
         get = function()
             return reactor.getBurnRate()
         end
