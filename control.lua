@@ -239,27 +239,62 @@ local function command_handler()
     end
 end
 
+local function safe_scram()
+    local ok, err = pcall(function()
+        if reactor.getStatus() == true then
+            reactor.scram()
+            reactor.setBurnRate(0)
+        end
+    end)
+    return ok, err
+end
+
+local function peripheral_watchdog()
+    while true do
+        local _, side = os.pullEvent("peripheral_detach")
+        pcall(monitor_print, "PERIPHERAL DISCONNECTED: " .. side .. ". Initiating shutdown.")
+        print("PERIPHERAL DISCONNECTED: " .. side .. ". Initiating shutdown.")
+        pcall(vox.announce, "reactor emergency shut down")
+        local ok = safe_scram()
+        if ok then
+            pcall(monitor_print, "Reactor shutdown successful.")
+            print("Reactor shutdown due to peripheral disconnect.")
+        else
+            pcall(monitor_print, "!!! REACTOR SHUTDOWN FAILED - reactor may still be running !!!")
+            print("WARNING: Reactor shutdown failed.")
+        end
+        return
+    end
+end
+
 local success, error_msg = pcall(
     parallel.waitForAny,
     main_reactor_loop,
     command_handler,
-    vox.vox_loop
+    vox.vox_loop,
+    peripheral_watchdog
 )
 if not success then
-    monitor_print("UNRECOVERABLE PROGRAM ERROR: " .. error_msg)
+    pcall(monitor_print, "UNRECOVERABLE PROGRAM ERROR: " .. error_msg)
     print("PROGRAM ERROR: " .. error_msg)
-    while reactor.getStatus() == true do
-        monitor_print("!!! INITIATING EMERGENCY SHUTDOWN !!!")
-        reactor.scram()
-        reactor.setBurnRate(0)
-        vox.announce("reactor emergency shut down")
-        if reactor.getStatus() == false then
-            monitor_print("REACTOR SHUTDOWN SUCCESSFUL.")
-            print("Exiting program.")
-            return
-        else
-            monitor_print("!!! REACTOR SHUTDOWN FAILED !!!")
-            sleep(0.05)
+    pcall(vox.announce, "reactor emergency shut down")
+    local shutdown_confirmed = false
+    for _ = 1, 5 do
+        local ok = safe_scram()
+        if ok then
+            local status_ok, is_active = pcall(function() return reactor.getStatus() end)
+            if status_ok and not is_active then
+                shutdown_confirmed = true
+                break
+            end
         end
+        sleep(0.05)
+    end
+    if shutdown_confirmed then
+        pcall(monitor_print, "REACTOR SHUTDOWN SUCCESSFUL.")
+        print("Exiting program.")
+    else
+        pcall(monitor_print, "!!! REACTOR SHUTDOWN COULD NOT BE CONFIRMED !!!")
+        print("WARNING: Could not confirm reactor shutdown.")
     end
 end

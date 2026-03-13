@@ -15,7 +15,7 @@ local function vox_loop()
             local decoder = dfpwm.make_decoder()
             local word = table.remove(vox_queue, 1)
             if word == "." then
-                sleep(0.1)
+                sleep(0.2)
             else
                 for chunk in io.lines("vox/" .. word .. ".dfpwm", 16 * 1024) do
                     local buffer = decoder(chunk)
