@@ -223,19 +223,20 @@ local commands = {
 
 local function try_command(command)
     if commands[command] == nil then
-            print("Unknown command. Enter 'help' command to get list of valid commands.")
-        else
-            if not commands[command]() then
-                return
-            end
-        end
+        print("Unknown command. Enter 'help' command to get list of valid commands.")
+        return true
+    else
+        return commands[command]()
+    end
 end
 
 local function command_handler()
     while true do
         write("Enter Command: ")
         local input = read()
-        try_command(input)
+        if not try_command(input) then
+            return
+        end
     end
 end
 
